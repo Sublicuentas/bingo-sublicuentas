@@ -1477,6 +1477,9 @@ function doAdminLogin(){
       if(d && d.passhash) _adminPassHash = d.passhash;
       if(!_adminEmail){ showToast('❌ Credenciales no configuradas. Usá el panel Settings → Configuración inicial.'); return; }
       _tryAdminLogin(email, pass);
+    }, err => {
+      console.error('Firebase credentials error:', err);
+      showToast('❌ Error conectando a Firebase — verificá la conexión');
     });
     return;
   }
@@ -1486,6 +1489,7 @@ function doAdminLogin(){
 function _tryAdminLogin(email, pass){
   if(email !== _adminEmail){ showToast('❌ Acceso denegado — correo no autorizado'); return; }
   if(simpleHash(pass) !== _adminPassHash){ showToast('❌ Contraseña incorrecta'); return; }
+  showToast('⏳ Cargando panel...');
   fbLoadAdminDataOnce().then(()=>{
     initAdminApp();
     fbStartAdminSync();
@@ -1493,6 +1497,9 @@ function _tryAdminLogin(email, pass){
     goPage('page-admin');
     localStorage.setItem('bingo_session', JSON.stringify({type:'admin'}));
     showToast('✅ Bienvenido al panel admin');
+  }).catch(err=>{
+    console.error('Admin login error:', err);
+    showToast('❌ Error al cargar datos — verificá la conexión a internet');
   });
 }
 
@@ -4047,14 +4054,14 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   const saved = localStorage.getItem('bingo_session');
   if(!saved) return;
 
-  // 5 second timeout — if Firebase is slow, fall back to manual login
+  // 15 second timeout — if Firebase is very slow, fall back to manual login
   let restoreDone = false;
   const restoreTimeout = setTimeout(()=>{
     if(!restoreDone){
       localStorage.removeItem('bingo_session');
       showToast('⚠️ Sesión expirada — iniciá sesión de nuevo');
     }
-  }, 5000);
+  }, 15000);
 
   try {
     const session = JSON.parse(saved);
@@ -4063,6 +4070,8 @@ document.addEventListener('DOMContentLoaded', async ()=>{
       await fbLoadAdminDataOnce();
       restoreDone = true;
       clearTimeout(restoreTimeout);
+      // Re-save session in case timeout already cleared it
+      localStorage.setItem('bingo_session', JSON.stringify({type:'admin'}));
       initAdminApp();
       fbStartAdminSync();
       switchAdmin('dash');
