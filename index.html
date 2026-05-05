@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>BINGO SUBLICUENTAS</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;600;700&family=Bebas+Neue&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <!-- Netflix Sans via CDN -->
 <style>
 @import url("https://fonts.cdnfonts.com/css/netflix-sans");
@@ -11181,5 +11181,423 @@ html,body,#app{
 }
 
 </style>
+
+
+<!-- ============================================================
+     SUBLICUENTAS BINGO — REDISEÑO PREMIUM CREMA + TURQUESA
+     Mobile-first / Producción / Sin look oscuro-neón
+     Esta capa visual respeta toda la lógica JS/Firebase existente.
+============================================================ -->
+<style id="subli-bingo-premium-cream-turquoise">
+:root{
+  --bg:#FCF8F1 !important;
+  --bg2:#FFF5E0 !important;
+  --surface:#FFFDF9 !important;
+  --sur2:#FCF8F1 !important;
+  --card:#FFFDF9 !important;
+  --dark:#FCF8F1 !important;
+  --dark2:#FFFDF9 !important;
+  --line:#D8CFC2 !important;
+  --border:#D8CFC2 !important;
+  --white:#334547 !important;
+  --muted:#66777A !important;
+  --cyan:#59C7C0 !important;
+  --cyan2:#8AE0DB !important;
+  --p500:#59C7C0 !important;
+  --p300:#8AE0DB !important;
+  --p900:#334547 !important;
+  --gold:#59C7C0 !important;
+  --gold2:#8AE0DB !important;
+  --orange:#59C7C0 !important;
+  --cream:#334547 !important;
+  --taupe:#66777A !important;
+  --charcoal:#334547 !important;
+  --green:#59C7C0 !important;
+  --blue:#59C7C0 !important;
+  --purple:#59C7C0 !important;
+  --red:#B85B50 !important;
+  --red2:#9F453C !important;
+  --bg-main:#FCF8F1 !important;
+  --bg-panel:#FFF5E0 !important;
+  --bg-card:#FFFDF9 !important;
+  --text-main:#334547 !important;
+  --text-soft:#66777A !important;
+  --text-muted:#8B8177 !important;
+  --accent:#59C7C0 !important;
+  --accent2:#8AE0DB !important;
+  --sand:#D8C7B6 !important;
+  --sand-soft:#D8CFC2 !important;
+  --shadow-soft:0 12px 34px rgba(51,69,71,.10) !important;
+  --shadow-card:0 8px 24px rgba(51,69,71,.08) !important;
+  --font-title:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif !important;
+  --font-sub:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif !important;
+  --font-body:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif !important;
+  --font-display:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif !important;
+  --font-mono:'Montserrat','Helvetica Neue',Helvetica,Arial,sans-serif !important;
+}
+*{box-sizing:border-box !important;}
+html,body{
+  width:100% !important;
+  min-height:100% !important;
+  margin:0 !important;
+  padding:0 !important;
+  background:var(--bg-main) !important;
+  color:var(--text-main) !important;
+  font-family:var(--font-body) !important;
+  overflow-x:hidden !important;
+}
+body::before,.app::before,.app::after,#page-player::before,#page-player::after{display:none !important;content:none !important;}
+::-webkit-scrollbar{width:5px !important;}
+::-webkit-scrollbar-track{background:#FCF8F1 !important;}
+::-webkit-scrollbar-thumb{background:#D8CFC2 !important;border-radius:20px !important;}
+.app{
+  max-width:480px !important;
+  min-height:100dvh !important;
+  margin:0 auto !important;
+  background:var(--bg-main) !important;
+  color:var(--text-main) !important;
+}
+.page.active{background:var(--bg-main) !important;color:var(--text-main) !important;}
+.auth-page,
+#page-login,
+#page-socio-admin-login,
+#page-admin-login{
+  min-height:100dvh !important;
+  justify-content:center !important;
+  align-items:center !important;
+  padding:22px 16px !important;
+  background:
+    radial-gradient(circle at 18% 4%,rgba(138,224,219,.36),transparent 34%),
+    radial-gradient(circle at 100% 10%,rgba(216,199,182,.35),transparent 30%),
+    linear-gradient(180deg,#FFF5E0 0%,#FCF8F1 58%,#FFFDF9 100%) !important;
+}
+.saas-auth-card,.auth-card,
+#page-socio-admin-login .auth-card,
+#page-admin-login .auth-card{
+  width:100% !important;
+  max-width:420px !important;
+  margin:0 auto !important;
+  background:rgba(255,253,249,.96) !important;
+  border:1px solid var(--border) !important;
+  border-radius:28px !important;
+  box-shadow:var(--shadow-soft) !important;
+  color:var(--text-main) !important;
+  clip-path:none !important;
+  padding:24px 20px !important;
+}
+.logo-title,.logo-sub,.saas-logo-name,.saas-h1,.auth-card h2,
+.header-brand,.socio-brand-main,.section-title,.modal-title,
+h1,h2,h3,h4,.sv,.lobby-game-time,#agc-prize-val,#game-prize-display{
+  font-family:var(--font-title) !important;
+  color:var(--text-main) !important;
+  text-shadow:none !important;
+  letter-spacing:-.02em !important;
+  font-weight:900 !important;
+}
+.saas-logo-name,.logo-title,.header-brand,.socio-brand-main{color:#334547 !important;}
+.logo-sub,.saas-p,.auth-card p,.socio-brand-sub,.sl,.field label,small{color:var(--text-soft) !important;}
+p,span,div,label,strong,small,button,input,select,textarea{font-family:var(--font-body) !important;text-shadow:none !important;}
+.field{margin-bottom:14px !important;}
+.field label,.saas-label{
+  color:#66777A !important;
+  font-size:10.5px !important;
+  font-weight:900 !important;
+  letter-spacing:.7px !important;
+}
+.field input,.field select,.field textarea,
+.saas-input,input,select,textarea{
+  background:#FFFDF9 !important;
+  border:1.5px solid #D8CFC2 !important;
+  border-radius:16px !important;
+  color:#334547 !important;
+  font-weight:700 !important;
+  outline:none !important;
+  box-shadow:none !important;
+}
+.field input:focus,.field select:focus,.field textarea:focus,
+.saas-input:focus,input:focus,select:focus,textarea:focus{
+  border-color:#59C7C0 !important;
+  box-shadow:0 0 0 4px rgba(89,199,192,.16) !important;
+}
+input::placeholder,textarea::placeholder{color:#B8B0A6 !important;opacity:1 !important;}
+select option{background:#FFFDF9 !important;color:#334547 !important;}
+.btn,.saas-btn-primary,.saas-btn-secondary,.btn-gold,.btn-green,.btn-blue,.btn-purple,.btn-outline,.btn-ghost,.btn-danger,.btn-red{
+  clip-path:none !important;
+  border-radius:16px !important;
+  text-transform:none !important;
+  letter-spacing:-.01em !important;
+  font-family:var(--font-title) !important;
+  font-weight:900 !important;
+  box-shadow:none !important;
+  transition:transform .18s ease, box-shadow .18s ease, background .18s ease !important;
+}
+.btn-gold,.btn-green,.btn-blue,.btn-purple,.saas-btn-primary,.btn-primary{
+  background:linear-gradient(135deg,#59C7C0 0%,#8AE0DB 100%) !important;
+  color:#17383A !important;
+  border:1px solid rgba(89,199,192,.55) !important;
+  box-shadow:0 10px 24px rgba(89,199,192,.24) !important;
+}
+.btn-gold:hover,.btn-green:hover,.btn-blue:hover,.btn-purple:hover,.saas-btn-primary:hover{
+  background:linear-gradient(135deg,#48B9B2 0%,#7AD8D3 100%) !important;
+  box-shadow:0 12px 28px rgba(89,199,192,.28) !important;
+}
+.btn-ghost,.btn-outline,.saas-btn-secondary,.btn-secondary{
+  background:#FFFDF9 !important;
+  color:#334547 !important;
+  border:1.5px solid #D8CFC2 !important;
+}
+.btn-red,.btn-danger{
+  background:#FFF0ED !important;
+  color:#B85B50 !important;
+  border:1.5px solid #E8BDB5 !important;
+}
+.link-btn,.saas-ghost-link{color:#23756F !important;font-weight:900 !important;}
+.card-box,.stat-card,.finance-kpi,.lobby-game-card,.seller-pill,
+.dashboard-card,.rule-card,.rules-banner,.game-status-bar,
+.data-table,.dt-row,.profile-card,.wallet-card,.admin-card,
+#admin-socios-list .socio-admin-card{
+  background:#FFFDF9 !important;
+  color:#334547 !important;
+  border:1px solid #D8CFC2 !important;
+  border-radius:22px !important;
+  box-shadow:var(--shadow-card) !important;
+}
+.card-slot-header,.dt-head,.tabs-bar,#socio-header,#socio-tabs-grid,.admin-topbar,.admin-nav,
+#page-player > .app-header,#page-admin .admin-topbar,#page-admin .admin-nav{
+  background:rgba(255,253,249,.92) !important;
+  border-color:#D8CFC2 !important;
+  backdrop-filter:blur(18px) !important;
+  box-shadow:0 8px 24px rgba(51,69,71,.07) !important;
+  color:#334547 !important;
+}
+#page-player,
+#page-socio,
+#page-admin,
+#page-admin.active{
+  background:var(--bg-main) !important;
+  color:var(--text-main) !important;
+  padding-top:0 !important;
+  margin-top:0 !important;
+}
+#page-admin.active{
+  display:block !important;
+  position:fixed !important;
+  top:0 !important;left:0 !important;right:0 !important;bottom:0 !important;
+  width:100% !important;
+  max-width:480px !important;
+  margin:0 auto !important;
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  -webkit-overflow-scrolling:touch !important;
+}
+.screen,#page-socio .screen,#page-admin .ascreen{
+  background:var(--bg-main) !important;
+  color:#334547 !important;
+  padding:16px 14px 96px !important;
+  margin:0 !important;
+}
+#page-admin .ascreen{display:none !important;}
+#page-admin .ascreen.active{display:block !important;}
+#page-player > .app-header{
+  position:sticky !important;
+  top:0 !important;
+  z-index:100 !important;
+  padding:13px 14px 12px !important;
+  margin:0 !important;
+  border-radius:0 !important;
+}
+.header-row{gap:10px !important;align-items:center !important;}
+.h-avatar{
+  width:44px !important;height:44px !important;
+  background:linear-gradient(135deg,#59C7C0,#8AE0DB) !important;
+  color:#17383A !important;
+  border:2px solid #FFFDF9 !important;
+  box-shadow:0 8px 18px rgba(89,199,192,.22) !important;
+}
+.h-name{color:#334547 !important;font-size:15px !important;font-weight:900 !important;}
+.h-carton{color:#66777A !important;font-size:11px !important;font-weight:800 !important;}
+.h-logout{background:#FFF0ED !important;border:1px solid #E8BDB5 !important;color:#B85B50 !important;border-radius:14px !important;}
+.player-date-pill{
+  background:#EAF8F7 !important;
+  border:1px solid #B9E9E5 !important;
+  color:#23756F !important;
+  margin:10px auto 6px !important;
+  font-weight:900 !important;
+}
+.tabs-bar{
+  position:sticky !important;
+  top:70px !important;
+  z-index:90 !important;
+  border-bottom:1px solid #D8CFC2 !important;
+}
+.tab-item,.sc-tab,.admin-nav-btn,.anav{
+  color:#66777A !important;
+  background:transparent !important;
+  border-color:transparent !important;
+  font-weight:900 !important;
+  text-shadow:none !important;
+}
+.tab-item.active,.sc-tab.active,.admin-nav-btn.active,.admin-nav-btn:hover,.anav.active{
+  background:#EAF8F7 !important;
+  color:#23756F !important;
+  border-color:#B9E9E5 !important;
+  box-shadow:none !important;
+}
+.tab-item.active::after{background:#59C7C0 !important;}
+.section-title{
+  width:100% !important;
+  background:transparent !important;
+  border-left:4px solid #59C7C0 !important;
+  color:#334547 !important;
+  clip-path:none !important;
+  padding:4px 0 4px 12px !important;
+  margin:0 0 14px !important;
+  font-size:20px !important;
+}
+.sv,.sg,.sb,.so,.sp,.sw,#agc-prize-val,#game-prize-display,.finance-kpi .num,.card-slot-score,.lobby-game-time,.prize-amount{
+  color:#23756F !important;
+  text-shadow:none !important;
+}
+.sl,.rule-text,.how-t,.alert-box{color:#66777A !important;}
+.badge{border-radius:999px !important;font-weight:900 !important;}
+.b-green,.b-gold,.b-blue,.b-purple,.status-success{
+  background:#EAF8F7 !important;
+  color:#23756F !important;
+  border:1px solid #B9E9E5 !important;
+}
+.b-red,.status-danger{
+  background:#FFF0ED !important;
+  color:#B85B50 !important;
+  border:1px solid #E8BDB5 !important;
+  animation:none !important;
+}
+.b-grey,.status-neutral{
+  background:#F4EFE8 !important;
+  color:#66777A !important;
+  border:1px solid #D8CFC2 !important;
+}
+.a-info,.a-success,.status-warning{
+  background:#EAF8F7 !important;
+  color:#23756F !important;
+  border:1px solid #B9E9E5 !important;
+}
+.a-warn{
+  background:#FFF5E0 !important;
+  color:#8A672E !important;
+  border:1px solid #E7D5AC !important;
+}
+.a-err{
+  background:#FFF0ED !important;
+  color:#B85B50 !important;
+  border:1px solid #E8BDB5 !important;
+}
+.bingo-card,.card-slot,.player-card,.my-card,.carton-card{
+  background:#FFFDF9 !important;
+  color:#334547 !important;
+  border:1.5px solid #D8CFC2 !important;
+  border-radius:24px !important;
+  box-shadow:var(--shadow-card) !important;
+}
+.bc,.bingo-cell,.cell{
+  background:#FCF8F1 !important;
+  border:1px solid #E5DACE !important;
+  color:#334547 !important;
+  border-radius:14px !important;
+  font-weight:900 !important;
+}
+.bc.hit,.bc.marked,.bingo-cell.marked,.cell.marked,.tn.hit{
+  background:linear-gradient(135deg,#59C7C0,#8AE0DB) !important;
+  color:#17383A !important;
+  border-color:#59C7C0 !important;
+  box-shadow:none !important;
+}
+.bc.free{
+  background:#FFF5E0 !important;
+  color:#8A672E !important;
+  border-color:#D8C7B6 !important;
+}
+.card-progress-bar{background:#F4EFE8 !important;border-radius:999px !important;}
+.card-progress-fill{background:#59C7C0 !important;border-radius:999px !important;}
+#cur-ball,.mini-ball,.rt-inner{
+  box-shadow:0 10px 22px rgba(51,69,71,.12) !important;
+  text-shadow:none !important;
+  border:3px solid #FFFDF9 !important;
+}
+#cur-ball{background:linear-gradient(135deg,#59C7C0,#8AE0DB) !important;color:#17383A !important;}
+#cur-letter,#cur-num{color:#17383A !important;text-shadow:none !important;}
+.ticker,.daily-msg-bar{
+  background:#FFFDF9 !important;
+  border-color:#D8CFC2 !important;
+  color:#23756F !important;
+}
+.ticker-inner,.daily-msg-inner{color:#23756F !important;text-shadow:none !important;font-weight:900 !important;}
+.modal-overlay{
+  background:rgba(51,69,71,.28) !important;
+  backdrop-filter:blur(12px) !important;
+}
+.modal-box,.win-box,.modal-card,
+#modal-edit-seller > div{
+  background:#FFFDF9 !important;
+  color:#334547 !important;
+  border:1px solid #D8CFC2 !important;
+  border-radius:28px !important;
+  box-shadow:0 18px 44px rgba(51,69,71,.18) !important;
+}
+.modal-close{
+  background:#F4EFE8 !important;
+  color:#334547 !important;
+}
+.toast{
+  background:#334547 !important;
+  color:#FFFDF9 !important;
+  border:1px solid rgba(255,253,249,.16) !important;
+  border-radius:18px !important;
+  box-shadow:0 14px 34px rgba(51,69,71,.25) !important;
+}
+.data-table{overflow:hidden !important;}
+.dt-head{background:#F4EFE8 !important;color:#66777A !important;}
+.dt-row{border-color:#E5DACE !important;}
+.dt-row:hover{background:#FCF8F1 !important;}
+.rule-icon{
+  background:#EAF8F7 !important;
+  border:1px solid #B9E9E5 !important;
+  color:#23756F !important;
+}
+.rule-title{color:#334547 !important;}
+#socio-header{position:sticky !important;top:0 !important;z-index:90 !important;}
+#socio-tabs-grid{background:#FCF8F1 !important;}
+.finance-card-action,.admin-action-card{
+  background:#FFFDF9 !important;
+  border:1px solid #D8CFC2 !important;
+  color:#334547 !important;
+  border-radius:20px !important;
+  box-shadow:var(--shadow-card) !important;
+}
+.finance-card-action.active,.admin-action-card.active{background:#EAF8F7 !important;border-color:#B9E9E5 !important;}
+#phase-overlay,.phase-overlay{
+  background:rgba(255,253,249,.92) !important;
+  backdrop-filter:blur(14px) !important;
+  color:#334547 !important;
+}
+#phase-overlay *,.phase-overlay *{text-shadow:none !important;color:inherit !important;}
+#page-admin .admin-topbar{top:0 !important;border-radius:0 !important;}
+#page-admin .admin-nav{top:58px !important;border-radius:0 !important;}
+[style*="background:var(--dark2)"],[style*="background: var(--dark2)"]{background:#FFFDF9 !important;}
+[style*="background:var(--dark)"],[style*="background: var(--dark)"]{background:#FCF8F1 !important;}
+[style*="color:#fff"],[style*="color: #fff"],[style*="color:white"],[style*="color: white"]{color:#334547 !important;}
+[style*="color:var(--orange)"],[style*="color: var(--orange)"],[style*="color:var(--cream)"],[style*="color: var(--cream)"]{color:#23756F !important;}
+[style*="rgba(255,255,255,.7)"],[style*="rgba(255,255,255,.6)"],[style*="rgba(255,255,255,.5)"]{color:#66777A !important;}
+@media(max-width:420px){
+  .app{max-width:100% !important;}
+  .auth-page,#page-login,#page-socio-admin-login,#page-admin-login{padding:18px 14px !important;}
+  .saas-auth-card,.auth-card{border-radius:24px !important;padding:22px 18px !important;}
+  #page-player > .app-header{padding:12px 12px 10px !important;}
+  .tabs-bar{top:66px !important;}
+  .screen,#page-socio .screen,#page-admin .ascreen{padding:14px 12px 94px !important;}
+  .section-title{font-size:18px !important;}
+  .btn{padding:13px 14px !important;}
+}
+</style>
+
 </body>
 </html>
