@@ -13038,5 +13038,177 @@ html,body{
 })();
 </script>
 
+
+<!-- ================================================================
+ SUBLICUENTAS PATCH FINAL 2026-05-05
+ Cartones legibles + socios visibles + limpieza segura de pruebas
+================================================================ -->
+<style id="subli-final-fix-20260505">
+/* MODO JUGADOR: cartones modernos y 100% legibles */
+#page-player #ps-cartones,
+#page-player #ps-juego{background:#FAF9F3!important;color:#14233B!important;}
+#page-player .cards-grid-2col{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:14px!important;padding:0 14px 28px!important;}
+#page-player .card-slot{
+  background:#FFFFFF!important;border:2px solid #BDEBE6!important;border-radius:22px!important;
+  box-shadow:0 12px 26px rgba(20,35,59,.10)!important;overflow:hidden!important;
+}
+#page-player .card-slot-header{
+  background:linear-gradient(135deg,#FFFFFF 0%,#EAFBF8 100%)!important;border-bottom:1px solid #D7EFEA!important;
+  padding:10px 12px!important;
+}
+#page-player .card-slot-num{font-family:Montserrat,Arial,sans-serif!important;font-size:13px!important;font-weight:900!important;letter-spacing:.2px!important;color:#14233B!important;opacity:1!important;}
+#page-player .card-slot-score{font-family:Montserrat,Arial,sans-serif!important;font-size:13px!important;font-weight:900!important;color:#0F948B!important;}
+#page-player .card-progress-bar{height:6px!important;background:#EAF2EF!important;}
+#page-player .card-progress-fill{background:linear-gradient(90deg,#19C7BE,#0F948B)!important;}
+#page-player .bingo-card,
+#page-player .bingo-card-compact{background:#FFFFFF!important;border:0!important;box-shadow:none!important;border-radius:0!important;}
+#page-player .bingo-hdr-cell{padding:8px 0!important;font-size:20px!important;font-family:Montserrat,Arial,sans-serif!important;font-weight:1000!important;color:#FFFFFF!important;text-shadow:0 1px 1px rgba(0,0,0,.18)!important;}
+#page-player .bingo-body{background:#FFFFFF!important;gap:1px!important;padding:1px!important;}
+#page-player .bc{
+  background:#F7FBFA!important;color:#14233B!important;border:1px solid #DDEDEA!important;
+  font-family:Montserrat,Arial,sans-serif!important;font-size:15px!important;font-weight:900!important;opacity:1!important;
+  text-shadow:none!important;filter:none!important;min-height:42px!important;
+}
+#page-player .bc.free{background:linear-gradient(135deg,#DFFB55,#19D3CD)!important;color:#10213A!important;font-size:18px!important;}
+#page-player .bc.marked{background:linear-gradient(135deg,#FF5C5C,#E11D48)!important;color:#FFFFFF!important;box-shadow:inset 0 0 0 2px rgba(255,255,255,.35)!important;}
+#page-player #my-cartones-grid:empty::after,
+#page-player #game-cards-wrap:empty::after{content:'No hay cartones asignados todavía.';display:block;grid-column:1/-1;background:#fff;border:1px solid #E4E0D6;border-radius:18px;padding:18px;color:#526174;font-weight:800;text-align:center;}
+@media(max-width:420px){
+  #page-player .cards-grid-2col{gap:10px!important;padding-left:10px!important;padding-right:10px!important;}
+  #page-player .bc{font-size:13px!important;min-height:36px!important;}
+  #page-player .bingo-hdr-cell{font-size:18px!important;}
+  #page-player .card-slot-num{font-size:12px!important;}
+}
+/* ADMIN: que el botón de limpieza sea visible y no se esconda entre fichas */
+#subli-clean-test-btn{display:block;width:calc(100% - 32px);margin:0 16px 14px!important;padding:16px 18px!important;border-radius:18px!important;border:2px solid #F5B5BD!important;background:#FFF7F8!important;color:#B91C1C!important;font-family:Montserrat,Arial,sans-serif!important;font-weight:1000!important;font-size:16px!important;box-shadow:0 8px 18px rgba(185,28,28,.08)!important;}
+#admin-socios-list .socio-admin-card{background:#FFFFFF!important;color:#14233B!important;border:1px solid #DCEFEB!important;border-radius:22px!important;box-shadow:0 10px 24px rgba(20,35,59,.08)!important;}
+#admin-socios-list .socio-admin-name{color:#14233B!important;}
+#admin-socios-list .socio-admin-user{color:#0F948B!important;}
+#admin-socios-list .socio-admin-meta{color:#526174!important;}
+</style>
+<script id="subli-final-fix-20260505-script">
+(function(){
+  'use strict';
+  const toast = (m)=>{ try{ (window.showToast||window._toast||alert)(m); }catch(e){ console.log(m); } };
+  const esc = (v)=>String(v??'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const arr = (snap)=>{ const v=snap&&snap.val?snap.val():snap; return v?Object.values(v):[]; };
+  function isGenericTestPlayer(p){
+    const email=String(p.email||'').toLowerCase();
+    const user=String(p.username||'').toLowerCase();
+    const name=(String(p.nombre||'')+' '+String(p.apellido||'')).toLowerCase();
+    return email.endsWith('@sublicuentas.test') || /^prueba\d+@/.test(email) || /^test\d+@test\.com$/.test(email) || /^testuser\d+/.test(user) || /\bprueba\b/.test(name) || p.__generatedTest===true;
+  }
+  function isGenericTestCode(c, ids){
+    const u=String(c.playerUsername||'').toLowerCase();
+    const n=String(c.playerName||'').toLowerCase();
+    return ids.has(String(c.playerId||'')) || /^testuser\d+/.test(u) || /\bprueba\b/.test(n) || c.__generatedTest===true;
+  }
+
+  window.subliDeleteTestPlayersOnly = async function(){
+    try{
+      if(!window.FBdb){ toast('❌ Firebase no está listo'); return; }
+      toast('⏳ Eliminando jugadores genéricos de prueba...');
+      const [ps,cs]=await Promise.all([FBdb.ref('bingo/players').once('value'), FBdb.ref('bingo/codes').once('value')]);
+      const playersObj=ps.val()||{}, codesObj=cs.val()||{};
+      const ids=new Set(); const updates={}; let removedPlayers=0, removedCodes=0;
+      Object.entries(playersObj).forEach(([k,p])=>{ if(isGenericTestPlayer(p)){ ids.add(String(p.id||k.replace(/^p/,''))); updates['bingo/players/'+k]=null; removedPlayers++; } });
+      Object.entries(codesObj).forEach(([k,c])=>{ if(isGenericTestCode(c,ids)){ updates['bingo/codes/'+k]=null; removedCodes++; } });
+      ids.forEach(id=>{ updates['bingo/usernames/testuser'+String(id).slice(-2)]=null; });
+      if(Object.keys(updates).length) await FBdb.ref().update(updates);
+      if(window.DB){
+        DB.players=(DB.players||[]).filter(p=>!isGenericTestPlayer(p));
+        DB.codes=(DB.codes||[]).filter(c=>!isGenericTestCode(c,ids));
+      }
+      try{ window.renderAdminPlayers&&window.renderAdminPlayers(); }catch(e){}
+      try{ window.refreshDash&&window.refreshDash(); }catch(e){}
+      try{ window.renderCodesTable&&window.renderCodesTable(); }catch(e){}
+      toast('✅ Limpieza lista: '+removedPlayers+' jugadores y '+removedCodes+' códigos de prueba eliminados');
+    }catch(e){ console.error(e); toast('❌ Error limpiando pruebas: '+(e.message||e)); }
+  };
+  window.adminClearTestData = window.subliDeleteTestPlayersOnly;
+
+  function addCleanButton(){
+    const wrap=document.getElementById('players-list-wrap');
+    if(!wrap||document.getElementById('subli-clean-test-btn')) return;
+    const btn=document.createElement('button');
+    btn.id='subli-clean-test-btn'; btn.type='button'; btn.textContent='🧹 Eliminar jugadores de prueba';
+    btn.onclick=window.subliDeleteTestPlayersOnly;
+    wrap.parentNode.insertBefore(btn,wrap);
+  }
+
+  /* Socios: mostrar /bingo/socios y, si allí no aparece, también los vendedores/socios antiguos */
+  window.renderAdminSocios = async function(){
+    const wrap=document.getElementById('admin-socios-list'); if(!wrap) return;
+    wrap.innerHTML='<div class="alert-box a-info">⏳ Cargando socios...</div>';
+    try{
+      if(!window.FBdb){ wrap.innerHTML='<div class="alert-box a-red">Firebase no está listo.</div>'; return; }
+      const [ss,vs]=await Promise.all([FBdb.ref('bingo/socios').once('value'), FBdb.ref('bingo/vendedores').once('value')]);
+      const socios=arr(ss).map(s=>Object.assign({tipo:'socio'},s));
+      const vendedores=arr(vs).map(v=>Object.assign({tipo:'vendedor', username:v.username||v.alias, pass:v.pass||v.password||v.clave||''},v));
+      const seen=new Set();
+      const merged=[...socios,...vendedores].filter(s=>{
+        const key=String(s.id||s.username||s.alias||s.nombre||'').toLowerCase();
+        if(!key||seen.has(key)) return false; seen.add(key); return true;
+      }).sort((a,b)=>Number(b.createdAt||b.id||0)-Number(a.createdAt||a.id||0));
+      if(window.DB) DB.socios=merged.filter(s=>s.activo!==false&&s.estado!=='inactivo');
+      if(!merged.length){ wrap.innerHTML='<div class="alert-box a-info">Todavía no hay socios registrados.</div>'; return; }
+      wrap.innerHTML=merged.map(s=>{
+        const activo=s.activo!==false&&s.estado!=='inactivo';
+        const id=esc(s.id||'');
+        const user=esc(s.username||s.alias||'sinusuario');
+        const nombre=esc(s.nombre||'Socio');
+        const pass=esc(s.pass||s.password||s.clave||'');
+        const tel=esc(s.telefono||'Sin teléfono');
+        const email=esc(s.email||'Sin correo');
+        return '<div class="socio-admin-card">'
+          +'<div class="socio-admin-head"><div>'
+          +'<div class="socio-admin-name">'+nombre+'</div>'
+          +'<div class="socio-admin-user">@'+user+(s.tipo==='vendedor'?' · registro antiguo':'')+'</div>'
+          +'<div class="socio-admin-meta">📞 '+tel+'<br>✉️ '+email+'<br>🔐 Clave: '+(pass||'—')+'</div>'
+          +'</div><div><span class="badge '+(activo?'b-green':'b-red')+'">'+(activo?'Activo':'Inactivo')+'</span></div></div>'
+          +'<div class="socio-admin-actions">'
+          +'<button class="btn btn-sm btn-blue" onclick="adminEditarSocio(\''+id+'\')">✏️ Editar</button>'
+          +'<button class="btn btn-sm '+(activo?'btn-red':'btn-green')+'" onclick="adminToggleSocio(\''+id+'\','+(activo?'true':'false')+')">'+(activo?'⛔ Pausar':'✅ Activar')+'</button>'
+          +'<button class="btn btn-sm btn-danger" onclick="adminEliminarSocio(\''+id+'\')">🗑 Borrar</button>'
+          +'</div></div>';
+      }).join('');
+    }catch(e){ console.error(e); wrap.innerHTML='<div class="alert-box a-red">❌ Error cargando socios: '+esc(e.message||e)+'</div>'; }
+  };
+
+  /* Prueba 6 PM: regenerar con usuarios que sí entran y marcar como test para poder borrarlos */
+  const oldLoadTest=window.loadTest6pm;
+  window.loadTest6pm=async function(){
+    if(typeof oldLoadTest==='function') await oldLoadTest();
+    try{
+      if(!window.FBdb||!window.DB) return;
+      const ps=await FBdb.ref('bingo/players').once('value');
+      const players=arr(ps);
+      const updates={};
+      players.forEach(p=>{
+        if(isGenericTestPlayer(p)){
+          const id=p.id;
+          updates['bingo/players/p'+id+'/disabled']=false;
+          updates['bingo/players/p'+id+'/estado']='activo';
+          updates['bingo/players/p'+id+'/pass']='test123';
+          updates['bingo/players/p'+id+'/__generatedTest']=true;
+        }
+      });
+      const cs=await FBdb.ref('bingo/codes').once('value');
+      arr(cs).forEach(c=>{ if(String(c.game||'')==='6pm' && isGenericTestCode(c,new Set(players.filter(isGenericTestPlayer).map(p=>String(p.id))))){ updates['bingo/codes/c'+c.id+'/__generatedTest']=true; updates['bingo/codes/c'+c.id+'/estado']='Pagado'; updates['bingo/codes/c'+c.id+'/estadoPago']='Pagado'; } });
+      if(Object.keys(updates).length) await FBdb.ref().update(updates);
+      toast('✅ Prueba lista: entre con prueba1@sublicuentas.test a prueba10@sublicuentas.test / clave test123');
+    }catch(e){ console.warn('post loadTest6pm fix',e); }
+  };
+
+  /* Evitar que los render viejos vuelvan a esconder el botón */
+  const oldPlayers=window.renderAdminPlayers;
+  if(typeof oldPlayers==='function'){
+    window.renderAdminPlayers=function(){ const r=oldPlayers.apply(this,arguments); setTimeout(addCleanButton,0); return r; };
+  }
+  document.addEventListener('DOMContentLoaded',()=>{ setTimeout(addCleanButton,500); });
+  setTimeout(addCleanButton,1200);
+})();
+</script>
+
 </body>
 </html>
