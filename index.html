@@ -13523,5 +13523,244 @@ html,body{
 })();
 </script>
 
+
+
+<!-- ============================================================
+ SUBLICUENTAS HOTFIX #8 — TIMER VISIBLE / PRUEBA SINCRONIZADA / 1 ESTRELLA / SOCIOS
+ ============================================================ -->
+<style id="subli-hotfix-8-css">
+  /* Timer visible encima del blur: números grandes, sólidos y sin opacidad heredada */
+  #phase-overlay{background:rgba(6,10,26,.94)!important;backdrop-filter:blur(3px)!important;-webkit-backdrop-filter:blur(3px)!important;}
+  #welcome-countdown{color:#16F4FF!important;-webkit-text-fill-color:#16F4FF!important;opacity:1!important;filter:none!important;text-shadow:0 0 24px rgba(22,244,255,.45)!important;}
+  #phase-overlay [data-cartones],#phase-overlay [data-premio]{opacity:1!important;color:#fff!important;-webkit-text-fill-color:#fff!important;filter:none!important;}
+  /* El centro del cartón solo debe mostrar UNA estrella: quita la estrella extra del pseudo-elemento */
+  .bc.free::after,#page-player .bc.free::after{content:none!important;display:none!important;}
+  .bc.free{position:relative!important;}
+</style>
+<script id="subli-hotfix-8-js">
+(function(){
+  if(window.__SUBLI_HOTFIX_8__) return;
+  window.__SUBLI_HOTFIX_8__ = true;
+
+  function toast(msg){ try{ if(typeof showToast==='function') showToast(msg); else console.log(msg); }catch(e){} }
+  function sg(g){ try{return safeGameSlot(g||'1pm');}catch(e){return String(g||'1pm').toLowerCase();} }
+  function today(){ try{return getTodayKey();}catch(e){return new Date().toISOString().slice(0,10);} }
+  function slotLabel(g){ return ({'1pm':'1:00 PM','6pm':'6:00 PM','9pm':'9:00 PM'})[sg(g)] || String(g||''); }
+  function vals(v){ return Array.isArray(v)?v:(v?Object.values(v):[]); }
+  function keyById(prefix,id){ return String(id||'').startsWith(prefix) ? String(id) : prefix + String(id); }
+  function nowServer(){ return Date.now() + Number(window.__SUBLI_SERVER_OFFSET__||0); }
+  try{ FBdb.ref('.info/serverTimeOffset').on('value',function(s){ window.__SUBLI_SERVER_OFFSET__=Number(s.val()||0); }); }catch(e){}
+
+  function liveGameFromCache(){
+    const d = window.__SUBLI_CURRENT_LIVE_DATA__ || {};
+    if(d && d.startedByAdmin===true && (d.status==='welcome'||d.status==='playing'||Number(d.phase)>0)) return sg(d.game);
+    return null;
+  }
+  function selectedAdminGame(){
+    try{ return sg(DB && DB.production && DB.production.currentGame || getActiveAdminGameId()); }catch(e){ return '1pm'; }
+  }
+  function effectiveActiveGame(){ return liveGameFromCache() || selectedAdminGame(); }
+
+  /* Refresco visual del overlay para que el timer nunca quede oscuro */
+  const oldShow = window.showPhaseOverlay;
+  window.showPhaseOverlay = function(type, data){
+    if(typeof oldShow==='function') oldShow(type, data);
+    const o=document.getElementById('phase-overlay');
+    if(!o) return;
+    o.style.background='rgba(6,10,26,.94)';
+    const c=document.getElementById('welcome-countdown');
+    if(c){
+      c.style.color='#16F4FF'; c.style.webkitTextFillColor='#16F4FF'; c.style.opacity='1';
+      c.style.textShadow='0 0 24px rgba(22,244,255,.45)'; c.style.filter='none';
+    }
+    if(data){
+      const cc=o.querySelector('[data-cartones]'); if(cc) cc.textContent=(Number(data.totalCards||0))+' cartones';
+      const pp=o.querySelector('[data-premio]'); if(pp) pp.textContent='Premio: Lps. '+(Number(data.prize||0)||((typeof calcPrize==='function')?calcPrize(Number(data.totalCards||0)):0));
+    }
+  };
+
+  function shuffle75(){
+    const a=Array.from({length:75},(_,i)=>i+1);
+    for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+    return a;
+  }
+  function cardsMap(gameId){
+    try{ return cardsMapForGame(gameId); }catch(e){}
+    const map={};
+    vals(window.DB && DB.myCards).filter(c=>!c.game || sg(c.game)===sg(gameId)).forEach((c,i)=>{ map['card'+(c.num||i)] = c; });
+    return map;
+  }
+  function sold(gameId){ try{return soldCardsForGame(gameId);}catch(e){return vals(DB&&DB.codes).filter(c=>sg(c.game)===sg(gameId)).reduce((a,c)=>a+Number(c.qty||c.cartones||0),0);} }
+
+  async function startSyncedRound(gameId){
+    gameId = sg(gameId || selectedAdminGame());
+    if(!window.FBdb || !window.DB){ toast('❌ Firebase/DB no disponible'); return; }
+    try{ if(typeof loadAdminFreshData==='function') await loadAdminFreshData(); }catch(e){}
+    DB.production = DB.production || {salesClosed:{},audit:[]};
+    DB.production.currentGame = gameId;
+    DB.production.currentGameDate = today();
+    DB.production.currentGameSlot = (typeof gameSlotKey==='function') ? gameSlotKey(gameId) : gameId;
+    DB.production.currentGameKey = (typeof makeGameKey==='function') ? makeGameKey(gameId,today()) : today()+'_'+gameId;
+    DB.production.currentRoundId = today()+'_'+gameId+'_'+Date.now();
+    try{ closeSalesForGame(gameId); }catch(e){}
+    try{ ensureCardsForGame(gameId); }catch(e){}
+
+    const total = sold(gameId);
+    const prize = (typeof calcPrize==='function') ? calcPrize(total) : total*7;
+    const now = nowServer();
+    const archivePath = (typeof gamePath==='function') ? gamePath(gameId,today()) : 'bingo/games/'+today()+'/'+gameId;
+    const payload = {
+      roundId:DB.production.currentRoundId,
+      game:gameId,
+      dateKey:today(),
+      slotKey:DB.production.currentGameSlot,
+      archivePath:archivePath,
+      gameKey:DB.production.currentGameKey,
+      phase:PHASE.WELCOME,
+      status:'welcome',
+      calledBalls:[],
+      ballSequence:shuffle75(),
+      totalCards:total,
+      prize:prize,
+      overtime:false,
+      winner:null,
+      secondsLeft:600,
+      nextBallIn:10,
+      ballSpeed:10,
+      welcomeLeft:60,
+      startedAt:now,
+      welcomeEndsAt:now+60000,
+      playStartsAt:now+60000,
+      gameEndsAt:now+660000,
+      salesClosed:true,
+      startedByAdmin:true,
+      startedBy:'admin',
+      cards:cardsMap(gameId),
+      updatedAt:Date.now()
+    };
+    DB.totalSoldThisGame = total;
+    DB.calledBalls = [];
+    GAME.phase=PHASE.WELCOME; GAME.secondsLeft=600; GAME.nextBallIn=10; GAME.ballSpeed=10; GAME.overtime=false; GAME.bingoFound=false;
+    await FBdb.ref('bingo/game').set(payload);
+    await FBdb.ref(archivePath).set(payload);
+    try{ await FBdb.ref('bingo/gameIndex/'+today()+'/'+payload.slotKey).update({game:gameId,slotKey:payload.slotKey,gameKey:payload.gameKey,roundId:payload.roundId,status:'welcome',phase:PHASE.WELCOME,totalCards:total,prize:prize,archivePath:archivePath,updatedAt:Date.now()}); }catch(e){}
+    window.__SUBLI_CURRENT_LIVE_DATA__ = payload;
+    try{ if(typeof startLocalAuthoritativeClock==='function') startLocalAuthoritativeClock(payload,true); }catch(e){}
+    try{ showPhaseOverlay('welcome',payload); updateWelcomeCountdown(60); updateGameClock(600); updateBallTimer(10); }catch(e){}
+    toast('▶️ Partida '+slotLabel(gameId)+' sincronizada: 60 segundos y luego 10:00');
+  }
+
+  window.startGame = async function(){
+    const gameId = selectedAdminGame();
+    const min = (DB && DB._testMode) ? 1 : ((typeof MIN_CARDS_TO_START!=='undefined') ? MIN_CARDS_TO_START : 20);
+    const total = sold(gameId);
+    if(total < min){ toast('❌ Mínimo '+min+' cartones para iniciar. Actual: '+total); return; }
+    await startSyncedRound(gameId);
+  };
+  window.iniciarPrueba6PM = async function(){
+    if(window.DB) DB._testMode = true;
+    await startSyncedRound('6pm');
+    toast('🧪 Modo prueba 6:00 PM listo y sincronizado para admin/jugador');
+  };
+  window.iniciarPrueba1PM = async function(){ if(window.DB) DB._testMode=true; await startSyncedRound('1pm'); };
+  window.iniciarPrueba9PM = async function(){ if(window.DB) DB._testMode=true; await startSyncedRound('9pm'); };
+
+  /* El jugador debe comparar contra la partida viva de Firebase, no contra la hora local. */
+  const oldSwitch = window.switchPlayerTab;
+  window.switchPlayerTab = function(tab){
+    if(tab==='juego'){
+      const live = liveGameFromCache();
+      const myCards = vals(DB && DB.myCards).filter(c=> DB.currentUser ? (!c.ownerId || String(c.ownerId)===String(DB.currentUser.id)) : true);
+      const cardGame = sg(window._lastRedeemedGame || (myCards[0]&&myCards[0].game) || live || selectedAdminGame());
+      if(live && myCards.length && cardGame !== live && Number(GAME.phase||0)>0){
+        const wrap=document.getElementById('partida-status-panel');
+        if(wrap){
+          wrap.innerHTML='<div style="background:#fff;border:1.5px solid rgba(239,68,68,.35);border-radius:20px;padding:22px;text-align:center;color:#172640;box-shadow:0 12px 28px rgba(15,23,42,.08);">'
+            +'<div style="font-size:34px;margin-bottom:8px;">⛔</div>'
+            +'<div style="font-family:Montserrat,Helvetica,Arial,sans-serif;font-size:24px;font-weight:900;color:#ef4444;margin-bottom:10px;">Partida incorrecta</div>'
+            +'<div style="font-size:15px;line-height:1.7;font-weight:700;">Tus cartones son para <strong style="color:#0F8F88;">'+slotLabel(cardGame)+'</strong>.<br>La partida activa es <strong style="color:#ef4444;">'+slotLabel(live)+'</strong>.</div>'
+            +'</div>';
+        }
+      }
+    }
+    return typeof oldSwitch==='function' ? oldSwitch(tab) : undefined;
+  };
+
+  const oldConfirm = window.confirmAndPlay;
+  window.confirmAndPlay = function(){
+    const live = liveGameFromCache();
+    const myCards = vals(DB && DB.myCards).filter(c=> DB.currentUser ? (!c.ownerId || String(c.ownerId)===String(DB.currentUser.id)) : true);
+    const cardGame = sg(window._lastRedeemedGame || (myCards[0]&&myCards[0].game) || live || selectedAdminGame());
+    if(live && cardGame !== live){
+      toast('⛔ Sus cartones son para '+slotLabel(cardGame)+'. La partida activa es '+slotLabel(live)+'.');
+      try{ switchPlayerTab('juego'); }catch(e){}
+      return;
+    }
+    if(typeof oldConfirm==='function') return oldConfirm();
+    try{ switchPlayerTab('juego'); }catch(e){}
+  };
+
+  /* Cartones: por si buildCompactCardSlot imprime ⭐ y además CSS agrega otra. */
+  const oldBuild = window.buildCompactCardSlot;
+  if(typeof oldBuild==='function'){
+    window.buildCompactCardSlot = function(){
+      const slot = oldBuild.apply(this, arguments);
+      try{ slot.querySelectorAll('.bc.free').forEach(el=>{ el.textContent='⭐'; }); }catch(e){}
+      return slot;
+    };
+  }
+
+  /* Socios: botones editar/pausar/borrar funcionan aunque la llave en Firebase sea sc{id} o cualquier key. */
+  async function findSocioKey(id){
+    const raw=String(id||'');
+    const candidates=[raw,keyById('sc',raw)];
+    for(const k of candidates){
+      const s=await FBdb.ref('bingo/socios/'+k).once('value');
+      if(s.exists()) return k;
+    }
+    const all=await FBdb.ref('bingo/socios').once('value');
+    const data=all.val()||{};
+    for(const [k,v] of Object.entries(data)){
+      if(String(v&&v.id)===raw || String(v&&v.username)===raw || String(v&&v.alias)===raw) return k;
+    }
+    return keyById('sc',raw);
+  }
+  window.adminToggleSocio = async function(id, activo){
+    try{
+      const k=await findSocioKey(id);
+      await FBdb.ref('bingo/socios/'+k).update({activo:!activo,updatedAt:Date.now()});
+      if(typeof renderAdminSocios==='function') await renderAdminSocios();
+      toast(!activo?'✅ Socio activado':'⛔ Socio pausado');
+    }catch(e){ toast('❌ Error actualizando socio: '+(e.message||e)); }
+  };
+  window.adminEliminarSocio = async function(id){
+    if(!confirm('¿Eliminar este socio?')) return;
+    try{
+      const k=await findSocioKey(id);
+      try{ if(typeof saveBackupToFirebase==='function') await saveBackupToFirebase('before_delete_socio'); }catch(e){}
+      await FBdb.ref('bingo/socios/'+k).remove();
+      if(typeof renderAdminSocios==='function') await renderAdminSocios();
+      toast('🗑 Socio eliminado');
+    }catch(e){ toast('❌ Error eliminando socio: '+(e.message||e)); }
+  };
+  window.adminEditarSocio = async function(id){
+    try{
+      const k=await findSocioKey(id);
+      const snap=await FBdb.ref('bingo/socios/'+k).once('value');
+      const s=snap.val()||{};
+      const nombre=prompt('Nombre completo:',s.nombre||'') ?? (s.nombre||'');
+      const username=(prompt('Usuario:',s.username||s.alias||'') ?? (s.username||s.alias||'')).trim().replace(/^@/,'').toLowerCase();
+      const pass=prompt('Contraseña:',s.pass||s.password||s.clave||'') ?? (s.pass||s.password||s.clave||'');
+      const telefono=prompt('Teléfono:',s.telefono||'') ?? (s.telefono||'');
+      const email=prompt('Correo:',s.email||'') ?? (s.email||'');
+      if(!nombre || !username || !pass){ toast('⚠️ Nombre, usuario y clave son obligatorios'); return; }
+      await FBdb.ref('bingo/socios/'+k).update({id:s.id||String(id).replace(/^sc/,''),nombre,username,alias:username,pass,password:pass,clave:pass,telefono,email,activo:s.activo!==false,updatedAt:Date.now()});
+      if(typeof renderAdminSocios==='function') await renderAdminSocios();
+      toast('✅ Socio actualizado');
+    }catch(e){ toast('❌ Error editando socio: '+(e.message||e)); }
+  };
+})();
+</script>
+
 </body>
 </html>
