@@ -475,6 +475,9 @@ function fbSyncGameState(){
     ballSpeed: GAME.ballSpeed || (GAME.overtime ? 5 : 10),
     salesClosed: isSalesClosed(game),
     cards: cardsMapForGame(game),
+    // 🔧 FIX: Sincronizar modo prueba para que jugadores puedan acceder
+    isTestMode: DB._testMode || false,
+    minCardsRequired: DB._testMode ? 1 : MIN_CARDS_TO_START,
     updatedAt: Date.now()
   };
   // Ruta live: partida actual para los jugadores conectados.
@@ -490,6 +493,8 @@ function fbSyncGameState(){
     phase: payload.phase,
     totalCards: payload.totalCards,
     prize: payload.prize,
+    isTestMode: payload.isTestMode,
+    minCardsRequired: payload.minCardsRequired,
     updatedAt: payload.updatedAt,
     archivePath
   });
@@ -5614,11 +5619,63 @@ const GAME = {
 
 const USED_CARD_SIGNATURES = new Set();
 
-function generateBingoNums(){
+// 🔧 FIX: Función para generar firma única de cartón
+function cardSignature(gridArray){
+  return gridArray.filter(x=>x!=='FREE').sort((a,b)=>a-b).join(',');
+}
+
+// 🔧 FIX: Cargar firmas existentes desde Firebase al inicio
+async function loadExistingCardSignatures(){
+  try{
+    const dateKey = gameDateKey();
+    const snap = await FBdb.ref(`bingo/cardSignatures/${dateKey}`).once('value');
+    const sigs = snap.val() || {};
+    for(let sig in sigs){
+      USED_CARD_SIGNATURES.add(sig);
+    }
+    console.log(`✅ Cargadas ${USED_CARD_SIGNATURES.size} firmas de cartones existentes`);
+  }catch(e){
+    console.error('Error cargando firmas de cartones:', e);
+  }
+}
+
+// 🔧 FIX: Verificar y registrar firma en Firebase de forma atómica
+async function registerCardSignature(sig, cardNum){
+  try{
+    const dateKey = gameDateKey();
+    const path = `bingo/cardSignatures/${dateKey}/${sig}`;
+    
+    // Verificar si existe usando transaction (atómico)
+    const result = await FBdb.ref(path).transaction((current) => {
+      if(current !== null){
+        // Ya existe, abortar
+        return; // undefined = abort
+      }
+      // No existe, registrar
+      return {
+        createdAt: Date.now(),
+        cardNum: cardNum,
+        registered: true
+      };
+    });
+    
+    if(result.committed){
+      return true; // Firma registrada con éxito
+    }else{
+      return false; // Firma ya existía
+    }
+  }catch(e){
+    console.error('Error registrando firma:', e);
+    return false;
+  }
+}
+
+async function generateBingoNums(){
   // Standard BINGO columns: B=1-15, I=16-30, N=31-45, G=46-60, O=61-75
   // 5 numbers per column, center cell (row2,col2) = FREE
   const ranges=[[1,15],[16,30],[31,45],[46,60],[61,75]];
   let attempts=0;
+  
   while(attempts<1000){
     attempts++;
     const cols=ranges.map(([min,max])=>{
@@ -5628,15 +5685,26 @@ function generateBingoNums(){
     });
     const g=[];
     for(let r=0;r<5;r++) for(let c=0;c<5;c++) g.push(r===2&&c===2?'FREE':cols[c][r]);
-    const sig=g.filter(x=>x!=='FREE').sort((a,b)=>a-b).join(',');
-    if(!USED_CARD_SIGNATURES.has(sig)){
+    const sig=cardSignature(g);
+    
+    // 🔧 FIX: Verificar primero en memoria local (rápido)
+    if(USED_CARD_SIGNATURES.has(sig)){
+      continue; // Ya existe localmente, siguiente intento
+    }
+    
+    // 🔧 FIX: Verificar y registrar en Firebase (atómico)
+    const registered = await registerCardSignature(sig, DB.nextCartonNum);
+    if(registered){
+      // ✅ Firma registrada exitosamente en Firebase
       USED_CARD_SIGNATURES.add(sig);
       return g;
     }
+    // Firma ya existía en Firebase (otra instancia la creó), siguiente intento
   }
-  // Fallback — clear registry and retry (practically never happens)
-  USED_CARD_SIGNATURES.clear();
-  return generateBingoNums();
+  
+  // 🔴 CRÍTICO: Después de 1000 intentos sin éxito
+  console.error('❌ IMPOSIBLE GENERAR CARTÓN ÚNICO después de 1000 intentos');
+  throw new Error('No se pueden generar más cartones únicos. Límite alcanzado.');
 }
 
 // FULL CARD: all 24 non-FREE numbers must be called
@@ -8243,6 +8311,9 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   try{ startClock(); }catch(e){}
   // Actualizar fecha/hora en pill del jugador
   try{ updatePlayerHeaderDateMessage(); setInterval(updatePlayerHeaderDateMessage, 60000); }catch(e){}
+  
+  // 🔧 FIX: Cargar firmas de cartones existentes desde Firebase
+  try{ await loadExistingCardSignatures(); }catch(e){ console.error('Error cargando firmas:', e); }
 
   // Auto-restauración desactivada: la app siempre debe iniciar en LOGIN.
   // Antes entraba directo al panel admin porque quedaba guardado bingo_session.
@@ -9786,6 +9857,9 @@ h1, h2, h3 { color: #FBFBFB; font-family: var(--font-title); }
       playStartsAt: now + 60000,
       gameEndsAt: now + 660000,
       salesClosed: true,
+      // 🔧 FIX: Incluir info de modo prueba
+      isTestMode: DB._testMode || false,
+      minCardsRequired: DB._testMode ? 1 : ((typeof MIN_CARDS_TO_START!=='undefined') ? MIN_CARDS_TO_START : 20),
       cards: buildCardsMapSafe(gameId),
       updatedAt: now
     };
@@ -9796,6 +9870,7 @@ h1, h2, h3 { color: #FBFBFB; font-family: var(--font-title); }
       await FBdb.ref('bingo/gameIndex/'+today()+'/'+payload.slotKey).update({
         game:gameId, slotKey:payload.slotKey, gameKey:payload.gameKey, roundId:payload.roundId,
         status:'welcome', phase:PHASE.WELCOME, totalCards:payload.totalCards, prize:payload.prize,
+        isTestMode: payload.isTestMode, minCardsRequired: payload.minCardsRequired,
         archivePath:payload.archivePath, updatedAt:payload.updatedAt
       });
     }catch(e){}
@@ -13103,15 +13178,40 @@ html,body{
       Object.entries(playersObj).forEach(([k,p])=>{ if(isGenericTestPlayer(p)){ ids.add(String(p.id||k.replace(/^p/,''))); updates['bingo/players/'+k]=null; removedPlayers++; } });
       Object.entries(codesObj).forEach(([k,c])=>{ if(isGenericTestCode(c,ids)){ updates['bingo/codes/'+k]=null; removedCodes++; } });
       ids.forEach(id=>{ updates['bingo/usernames/testuser'+String(id).slice(-2)]=null; });
+      
+      // 🔧 FIX: Limpiar estado de juego en Firebase
+      const dateKey = (typeof gameDateKey === 'function') ? gameDateKey() : new Date().toISOString().split('T')[0];
+      updates['bingo/game'] = null; // Limpiar estado live
+      updates['bingo/games/' + dateKey] = null; // Limpiar archivo del día
+      updates['bingo/gameIndex/' + dateKey] = null; // Limpiar índice
+      updates['bingo/cardSignatures/' + dateKey] = null; // 🔧 FIX: Limpiar firmas de cartones
+      
       if(Object.keys(updates).length) await FBdb.ref().update(updates);
       if(window.DB){
         DB.players=(DB.players||[]).filter(p=>!isGenericTestPlayer(p));
         DB.codes=(DB.codes||[]).filter(c=>!isGenericTestCode(c,ids));
+        // 🔧 FIX: Reset variables locales
+        DB._testMode = false;
+        DB.myCards = [];
+        DB.calledBalls = [];
+        DB.totalSoldThisGame = 0;
       }
+      // 🔧 FIX: Limpiar firmas en memoria
+      if(window.USED_CARD_SIGNATURES) USED_CARD_SIGNATURES.clear();
+      
+      // 🔧 FIX: Reset GAME state
+      if(window.GAME){
+        GAME.phase = (typeof PHASE !== 'undefined') ? PHASE.IDLE : 0;
+        GAME.bingoFound = false;
+        GAME.overtime = false;
+        GAME.ballSpeed = 10;
+      }
+      
       try{ window.renderAdminPlayers&&window.renderAdminPlayers(); }catch(e){}
       try{ window.refreshDash&&window.refreshDash(); }catch(e){}
       try{ window.renderCodesTable&&window.renderCodesTable(); }catch(e){}
-      toast('✅ Limpieza lista: '+removedPlayers+' jugadores y '+removedCodes+' códigos de prueba eliminados');
+      try{ window.refreshGameControl&&window.refreshGameControl(); }catch(e){}
+      toast('✅ Limpieza COMPLETA: '+removedPlayers+' jugadores, '+removedCodes+' códigos, estado de juego y firmas de cartones eliminados');
     }catch(e){ console.error(e); toast('❌ Error limpiando pruebas: '+(e.message||e)); }
   };
   window.adminClearTestData = window.subliDeleteTestPlayersOnly;
