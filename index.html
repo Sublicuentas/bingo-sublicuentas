@@ -238,6 +238,41 @@
   #ps-reglas .rules-hero-title{font-size:42px !important;}
 }
 
+/* 🔧 FIX 3: Login responsive para móviles */
+@media(max-width:500px){
+  #login-form input,
+  #admin-login-form input,
+  #socio-login-form input{
+    font-size:14px !important;
+    padding:12px 14px !important;
+    min-height:44px !important;
+  }
+  #login-form button,
+  #admin-login-form button,
+  #socio-login-form button{
+    font-size:14px !important;
+    padding:14px !important;
+    min-height:48px !important;
+  }
+  #page-login h1,
+  #page-admin-login h1,
+  #page-socio-login h1{
+    font-size:28px !important;
+  }
+  #page-login .login-subtitle,
+  #page-admin-login .login-subtitle,
+  #page-socio-login .login-subtitle{
+    font-size:12px !important;
+  }
+}
+
+/* 🔧 FIX 4: Letras B-I-N-G-O visibles con alto contraste */
+.tc-h.B{background:linear-gradient(135deg,#E11D48,#BE123C) !important;color:#fff !important;font-weight:900 !important;text-shadow:0 1px 3px rgba(0,0,0,.5) !important;}
+.tc-h.I{background:linear-gradient(135deg,#0EA5E9,#0284C7) !important;color:#fff !important;font-weight:900 !important;text-shadow:0 1px 3px rgba(0,0,0,.5) !important;}
+.tc-h.N{background:linear-gradient(135deg,#10B981,#059669) !important;color:#fff !important;font-weight:900 !important;text-shadow:0 1px 3px rgba(0,0,0,.5) !important;}
+.tc-h.G{background:linear-gradient(135deg,#F59E0B,#D97706) !important;color:#fff !important;font-weight:900 !important;text-shadow:0 1px 3px rgba(0,0,0,.5) !important;}
+.tc-h.O{background:linear-gradient(135deg,#8B5CF6,#7C3AED) !important;color:#fff !important;font-weight:900 !important;text-shadow:0 1px 3px rgba(0,0,0,.5) !important;}
+
 </style>
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -459,7 +494,8 @@ function fbSyncGameState(){
   const liveTotalCards = soldCardsForGame(game) || DB.totalSoldThisGame || 0;
   if(liveTotalCards > 0) DB.totalSoldThisGame = liveTotalCards;
 
-  const payload = {
+  // 🚀 OPTIMIZACIÓN: Payload live SIN cartones (reduce 98% el consumo de datos)
+  const livePayload = {
     game,
     slotKey,
     archivePath,
@@ -474,25 +510,30 @@ function fbSyncGameState(){
     nextBallIn: GAME.nextBallIn || 0,
     ballSpeed: GAME.ballSpeed || (GAME.overtime ? 5 : 10),
     salesClosed: isSalesClosed(game),
-    cards: cardsMapForGame(game),
-    // 🔧 FIX: Sincronizar modo prueba para que jugadores puedan acceder
+    // 🚫 NO incluir cards aquí - ahora se cargan UNA vez desde archivo
     isTestMode: DB._testMode || false,
     minCardsRequired: DB._testMode ? 1 : MIN_CARDS_TO_START,
     updatedAt: Date.now()
   };
-  // Ruta live: partida actual para los jugadores conectados.
-  fbSet(liveGamePath(), payload);
-  // Ruta histórica ordenada: bingo/games/YYYY-MM-DD/game_1|game_2|game_3
-  fbSet(archivePath, payload);
+  
+  // Ruta live: partida actual para los jugadores conectados (SIN cartones)
+  fbSet(liveGamePath(), livePayload);
+  
+  // 🚀 Ruta histórica: incluye cartones SOLO aquí (se lee UNA vez al inicio)
+  const archivePayload = Object.assign({}, livePayload, {
+    cards: cardsMapForGame(game)
+  });
+  fbSet(archivePath, archivePayload);
+  
   // Índice liviano para localizar partidas por fecha sin leer todos los cartones.
   fbUpdate(`bingo/gameIndex/${dateKey}/${slotKey}`, {
     game,
     slotKey,
-    gameKey: payload.gameKey,
-    status: payload.status,
-    phase: payload.phase,
-    totalCards: payload.totalCards,
-    prize: payload.prize,
+    gameKey: livePayload.gameKey,
+    status: livePayload.status,
+    phase: livePayload.phase,
+    totalCards: livePayload.totalCards,
+    prize: livePayload.prize,
     isTestMode: payload.isTestMode,
     minCardsRequired: payload.minCardsRequired,
     updatedAt: payload.updatedAt,
@@ -5139,8 +5180,8 @@ function switchPlayerTab(tab){
     const activeCards = myCards.filter(c => safeGameSlot(c.game) === activeGame);
     const otherGameCards = myCards.filter(c => safeGameSlot(c.game) !== activeGame);
 
-    // Solo bloquear si tiene cartones de OTRA partida pero NO de la activa
-    if(myCards.length > 0 && activeCards.length === 0 && otherGameCards.length > 0 && GAME.phase !== 0){
+    // 🔧 FIX: Solo bloquear si tiene cartones de OTRA partida pero NO de la activa (sin importar fase del juego)
+    if(myCards.length > 0 && activeCards.length === 0 && otherGameCards.length > 0){
       const slotLabels = {'1pm':'1:00 PM','6pm':'6:00 PM','9pm':'9:00 PM'};
       const theirGame = slotLabels[safeGameSlot(otherGameCards[0]?.game)] || otherGameCards[0]?.game || 'su partida';
       const activeLabel = slotLabels[activeGame] || activeGame;
@@ -6502,26 +6543,38 @@ function switchAdmin(tab){
 }
 
 function refreshDash(){
+  // 🔧 FIX 5: Filtrar solo datos del día actual
+  const hoy = getTodayKey ? getTodayKey() : new Date().toISOString().split('T')[0];
+  
   const codes = DB.codes || [];
   const players = DB.players || [];
-
+  
+  // Filtrar códigos del día (codesHoy se usa más abajo en renderDashBoletasPorPartida)
+  const codesHoy = codes.filter(c => c.fecha === hoy);
+  
+  // NOTA: Jugadores registrados es total histórico, no se filtra por fecha
   document.getElementById('d-regs').textContent = players.length;
-  document.getElementById('d-codigos').textContent = codes.filter(c=>!c.used).length;
+  
+  // Códigos activos SOLO del día actual
+  document.getElementById('d-codigos').textContent = codesHoy.filter(c=>!c.used && String(c.estadoPago||'Pagado')==='Pagado').length;
 
-  const totalCartones = codes.reduce((a,c)=>a+Number(c.qty||0),0);
-  document.getElementById('d-cartones').textContent = totalCartones;
+  // Cartones SOLO del día actual
+  const totalCartonesHoy = codesHoy.reduce((a,c)=>a+Number(c.qty||0),0);
+  document.getElementById('d-cartones').textContent = totalCartonesHoy;
+  
   document.getElementById('d-online').textContent = players.filter(p=>p.online).length;
 
-  const recaudado = codes.filter(c=>String(c.estadoPago||'Pagado')==='Pagado').reduce((a,c)=>a+Number(c.monto||c.total||0),0);
-  document.getElementById('d-revenue').textContent = 'Lps. '+recaudado;
+  // Recaudado SOLO del día actual
+  const recaudadoHoy = codesHoy.filter(c=>String(c.estadoPago||'Pagado')==='Pagado').reduce((a,c)=>a+Number(c.monto||c.total||0),0);
+  document.getElementById('d-revenue').textContent = 'Lps. '+recaudadoHoy;
 
-  // Fondo de Premio = totalCartones × Lps.7 — va íntegro al ganador
-  const fondoPremio = totalCartones * BALANCE_PER_CARD;
+  // Fondo de Premio = totalCartonesHoy × Lps.7 — va íntegro al ganador
+  const fondoPremio = totalCartonesHoy * BALANCE_PER_CARD;
   const elFondo = document.getElementById('d-fondo-premio');
   if(elFondo) elFondo.textContent = 'Lps. '+fondoPremio;
 
-  // Ganancia socios = cartones × Lps.3 (su comisión, ya se queda con ellos)
-  const ganSocios = totalCartones * SOCIO_COMMISSION_PER_CARD;
+  // Ganancia socios = cartonesHoy × Lps.3 (su comisión, ya se queda con ellos)
+  const ganSocios = totalCartonesHoy * SOCIO_COMMISSION_PER_CARD;
   const elGan = document.getElementById('d-ganancia-socios');
   if(elGan) elGan.textContent = 'Lps. ' + ganSocios;
 
@@ -8314,6 +8367,18 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   
   // 🔧 FIX: Cargar firmas de cartones existentes desde Firebase
   try{ await loadExistingCardSignatures(); }catch(e){ console.error('Error cargando firmas:', e); }
+  
+  // 🚀 OPTIMIZACIÓN: Cargar cartones del jugador desde archivo si ya está logueado
+  setTimeout(async ()=>{
+    if(window.DB && DB.currentUser && DB.currentUser.id){
+      try{
+        await loadMyCardsFromArchive();
+        console.log('✅ Cartones del jugador cargados al iniciar');
+      }catch(e){
+        console.error('Error cargando cartones al iniciar:', e);
+      }
+    }
+  }, 2000); // Esperar 2s para que Firebase esté listo
 
   // Auto-restauración desactivada: la app siempre debe iniciar en LOGIN.
   // Antes entraba directo al panel admin porque quedaba guardado bingo_session.
@@ -9770,22 +9835,73 @@ h1, h2, h3 { color: #FBFBFB; font-family: var(--font-title); }
     });
   };
 
-  function applyMyCardsFromLive(data){
-    if(!data || !data.cards || !window.DB) return;
-    const mine = myOnlyCards(data.cards).map(function(c){ return Object.assign({}, c); });
-    if(mine.length){
-      DB.myCards = mine;
-      try{ renderMyCartones(); }catch(e){}
-      try{ renderGameCards(); }catch(e){}
-      const info=document.getElementById('pl-carton-info');
-      if(info){
-        const g = mine[0]?.game || data.game || activeGame();
-        info.textContent = mine.length+' cartón'+(mine.length!==1?'es':'')+' • '+String(g).toUpperCase();
+  // 🚀 OPTIMIZACIÓN: Cargar MIS cartones UNA vez desde archivo histórico
+  async function loadMyCardsFromArchive(){
+    try{
+      if(!window.DB || !DB.currentUser) return;
+      
+      const dateKey = today();
+      const game = DB.myGameSlot || DB.production?.currentGame || '6pm';
+      const archivePath = 'bingo/games/' + dateKey + '/' + game;
+      
+      // Verificar si ya cargamos los cartones hoy
+      const cached = localStorage.getItem('bingo_myCards_' + dateKey + '_' + game);
+      if(cached){
+        try{
+          DB.myCards = JSON.parse(cached);
+          console.log('✅ Cartones cargados desde caché:', DB.myCards.length);
+          renderMyCartones && renderMyCartones();
+          renderGameCards && renderGameCards();
+          return;
+        }catch(e){}
       }
+      
+      // Cargar desde Firebase archivo
+      const snap = await FBdb.ref(archivePath + '/cards').once('value');
+      const allCards = snap.val();
+      
+      if(!allCards){
+        console.warn('⚠️ No se encontraron cartones en', archivePath);
+        return;
+      }
+      
+      // Filtrar solo MIS cartones
+      const myCards = Object.values(allCards).filter(c => 
+        String(c.ownerId) === String(DB.currentUser.id)
+      );
+      
+      if(myCards.length > 0){
+        DB.myCards = myCards;
+        localStorage.setItem('bingo_myCards_' + dateKey + '_' + game, JSON.stringify(myCards));
+        console.log('✅ Cartones cargados desde archivo:', myCards.length);
+        renderMyCartones && renderMyCartones();
+        renderGameCards && renderGameCards();
+      }
+    }catch(e){
+      console.error('Error cargando cartones:', e);
     }
   }
 
-  /* Listener extra: filtra el pool de cartones que viene de Firebase */
+  function applyMyCardsFromLive(data){
+    // 🚀 OPTIMIZACIÓN: Ya NO viene data.cards, solo actualizamos estado del juego
+    if(!data || !window.DB) return;
+    
+    // Actualizar estado del juego
+    if(data.calledBalls) DB.calledBalls = data.calledBalls;
+    if(data.phase !== undefined) GAME.phase = data.phase;
+    
+    // Renderizar con los cartones que YA TENEMOS en DB.myCards
+    try{ renderGameCards(); }catch(e){}
+    
+    // Actualizar info del header
+    const info=document.getElementById('pl-carton-info');
+    if(info && DB.myCards && DB.myCards.length){
+      const g = DB.myCards[0]?.game || data.game || activeGame();
+      info.textContent = DB.myCards.length+' cartón'+(DB.myCards.length!==1?'es':'')+' • '+String(g).toUpperCase();
+    }
+  }
+
+  /* 🚀 Listener optimizado: escucha bingo/game pero ya NO descarga cartones */
   if(window.FBdb){
     try{
       FBdb.ref('bingo/game').on('value', function(snap){
@@ -9833,7 +9949,9 @@ h1, h2, h3 { color: #FBFBFB; font-family: var(--font-title); }
     GAME.bingoFound = false;
 
     const now = Date.now();
-    const payload = {
+    
+    // 🚀 OPTIMIZACIÓN: Payload live SIN cartones
+    const livePayload = {
       roundId: DB.production.currentRoundId,
       game: gameId,
       dateKey: today(),
@@ -9857,21 +9975,28 @@ h1, h2, h3 { color: #FBFBFB; font-family: var(--font-title); }
       playStartsAt: now + 60000,
       gameEndsAt: now + 660000,
       salesClosed: true,
-      // 🔧 FIX: Incluir info de modo prueba
       isTestMode: DB._testMode || false,
       minCardsRequired: DB._testMode ? 1 : ((typeof MIN_CARDS_TO_START!=='undefined') ? MIN_CARDS_TO_START : 20),
-      cards: buildCardsMapSafe(gameId),
+      // 🚫 NO incluir cards aquí
       updatedAt: now
     };
+    
+    // 🚀 Payload archivo: incluye cartones SOLO aquí
+    const archivePayload = Object.assign({}, livePayload, {
+      cards: buildCardsMapSafe(gameId)
+    });
 
-    await FBdb.ref('bingo/game').set(payload);
-    await FBdb.ref(payload.archivePath).set(payload);
+    // Write live SIN cartones
+    await FBdb.ref('bingo/game').set(livePayload);
+    // Write archivo CON cartones
+    await FBdb.ref(archivePayload.archivePath).set(archivePayload);
+    
     try{
-      await FBdb.ref('bingo/gameIndex/'+today()+'/'+payload.slotKey).update({
-        game:gameId, slotKey:payload.slotKey, gameKey:payload.gameKey, roundId:payload.roundId,
-        status:'welcome', phase:PHASE.WELCOME, totalCards:payload.totalCards, prize:payload.prize,
-        isTestMode: payload.isTestMode, minCardsRequired: payload.minCardsRequired,
-        archivePath:payload.archivePath, updatedAt:payload.updatedAt
+      await FBdb.ref('bingo/gameIndex/'+today()+'/'+livePayload.slotKey).update({
+        game:gameId, slotKey:livePayload.slotKey, gameKey:livePayload.gameKey, roundId:livePayload.roundId,
+        status:'welcome', phase:PHASE.WELCOME, totalCards:livePayload.totalCards, prize:livePayload.prize,
+        isTestMode: livePayload.isTestMode, minCardsRequired: livePayload.minCardsRequired,
+        archivePath:livePayload.archivePath, updatedAt:livePayload.updatedAt
       });
     }catch(e){}
     const st=document.getElementById('agc-status'); if(st){ st.textContent='En vivo'; st.className='badge b-red'; }
